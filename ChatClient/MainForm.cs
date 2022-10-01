@@ -31,7 +31,7 @@ namespace ChatClient
       {
         UserName = loginForm.UserName;
         var tcpClient = new TcpClient();
-        await tcpClient.ConnectAsync(IPAddress.Parse("127.0.0.1"), 9998);
+        await tcpClient.ConnectAsync(IPAddress.Parse("127.0.0.1"), 9999);
         server = new App.Common.ChatClient(tcpClient);
         await server.SendAsync(UserName!);
         while (true)

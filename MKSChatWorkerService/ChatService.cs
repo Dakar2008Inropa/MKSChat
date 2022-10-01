@@ -1,10 +1,5 @@
 ﻿using App.Common;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Net.Sockets;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace App.WindowsService;
 
@@ -24,7 +19,7 @@ public class ChatService : IDisposable
   {
     _logger.LogInformation("ChatService starting");
     _logger.LogDebug("Creating TcpListener");
-    var port = 9998;
+    var port = 9999;
     _listener = TcpListener.Create(port);
     _listener.Start();
     _logger.LogInformation("Listening on port {port}", port);
@@ -37,10 +32,27 @@ public class ChatService : IDisposable
         var copy = new ChatClient[Clients.Count];
         Clients.CopyTo(copy);
         mutex.ReleaseMutex();
-        copy.ToList().ForEach(async client =>
+        copy.ToList().ForEach(client =>
         {
-          var message = await client.ReceiveAsync();
-          await Broadcast($"{message} ({client.Name})");
+          try
+          {
+            if (client.Stream.DataAvailable)
+            {
+              var message = client.Receive();
+              Broadcast($"{message} ({client.Name})");
+            }
+          }
+          catch (Exception ex)
+          {
+            _logger.LogInformation(ex, "{name} has disconnected", client.Name);
+            string? disconnectedClientName = client.Name;
+            mutex.WaitOne();
+            if (Clients.Remove(client))
+            {
+              Console.WriteLine($"{disconnectedClientName} has disconnected");
+            }
+            mutex.ReleaseMutex();
+          }
         });
         await Task.Delay(100);
       }
@@ -57,14 +69,14 @@ public class ChatService : IDisposable
       client.Name = name;
       _logger.LogInformation("Name: {name}", name);
       Console.WriteLine($"{name} connected");
-      await Broadcast($"{name} connected");
+      await BroadcastAsync($"{name} connected");
       mutex.WaitOne();
       Clients.Add(client);
       mutex.ReleaseMutex();
     }
   }
 
-  private async Task Broadcast(string message)
+  private async Task BroadcastAsync(string message)
   {
     List<ChatClient> dead_clients = new();
     foreach (var client in Clients)
@@ -73,8 +85,28 @@ public class ChatService : IDisposable
       {
         await client.SendAsync(message);
       }
-      catch (Exception)
+      catch (Exception ex)
       {
+        Console.WriteLine(ex);
+        dead_clients.Add(client);
+      }
+    }
+    mutex.WaitOne();
+    dead_clients.ForEach(client => Clients.Remove(client));
+    mutex.ReleaseMutex();
+  }
+  private void Broadcast(string message)
+  {
+    List<ChatClient> dead_clients = new();
+    foreach (var client in Clients)
+    {
+      try
+      {
+        client.Send(message);
+      }
+      catch (Exception ex)
+      {
+        Console.WriteLine(ex);
         dead_clients.Add(client);
       }
     }
