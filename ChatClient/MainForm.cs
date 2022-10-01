@@ -37,7 +37,8 @@ namespace ChatClient
         while (true)
         {
           var message = await server.ReceiveAsync();
-          tbChatbox.AppendText(message + Environment.NewLine);
+          if (!string.IsNullOrEmpty(message))
+            tbChatbox.AppendText(message + Environment.NewLine);
           await Task.Delay(100);
         }
       }

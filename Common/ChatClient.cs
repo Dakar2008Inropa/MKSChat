@@ -10,8 +10,7 @@ public sealed class ChatClient : IDisposable
   private TcpClient TcpClient { get; }
   public NetworkStream Stream { get; }
   public String? Name { get; set; }
-
-  //public string Name { get; private set; } = String.Empty;
+  public bool Dead { get; private set; }
 
   public ChatClient(TcpClient tcpClient)
   {
@@ -22,31 +21,59 @@ public sealed class ChatClient : IDisposable
   public async Task<string> ReceiveAsync()
   {
     var buffer = new byte[1_024];
-    int received = await Stream.ReadAsync(buffer);
-
-    var message = Encoding.UTF8.GetString(buffer, 0, received);
-    return message;
+    try
+    {
+      int received = await Stream.ReadAsync(buffer);
+      var message = Encoding.UTF8.GetString(buffer, 0, received);
+      return message;
+    }
+    catch (Exception)
+    {
+      Dead = true;
+      return string.Empty;
+    }
   }
 
   public string Receive()
   {
     var buffer = new byte[1_024];
-    int received = Stream.Read(buffer);
-
-    var message = Encoding.UTF8.GetString(buffer, 0, received);
-    return message;
+    try
+    {
+      int received = Stream.Read(buffer);
+      var message = Encoding.UTF8.GetString(buffer, 0, received);
+      return message;
+    }
+    catch (Exception)
+    {
+      Dead = true;
+      return string.Empty;
+    }
   }
 
   public async Task SendAsync(string message)
   {
     byte[] msg = Encoding.UTF8.GetBytes(message);
-    await Stream.WriteAsync(msg);
+    try
+    {
+      await Stream.WriteAsync(msg);
+    }
+    catch (Exception)
+    {
+      Dead = true;
+    }
   }
 
   public void Send(string message)
   {
     byte[] msg = Encoding.UTF8.GetBytes(message);
-    Stream.Write(msg);
+    try
+    {
+      Stream.Write(msg);
+    }
+    catch (Exception)
+    {
+      Dead = true;
+    }
   }
 
   #region IDisposable

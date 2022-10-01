@@ -29,31 +29,30 @@ public class ChatService : IDisposable
       while (true)
       {
         mutex.WaitOne();
-        var copy = new ChatClient[Clients.Count];
-        Clients.CopyTo(copy);
-        mutex.ReleaseMutex();
-        copy.ToList().ForEach(client =>
+        foreach (var client in Clients)
         {
-          try
+          if (client.Stream.DataAvailable)
           {
-            if (client.Stream.DataAvailable)
-            {
-              var message = client.Receive();
+            var message = client.Receive();
+            if (!string.IsNullOrEmpty(message))
               Broadcast($"{message} ({client.Name})");
-            }
           }
-          catch (Exception ex)
-          {
-            _logger.LogInformation(ex, "{name} has disconnected", client.Name);
-            string? disconnectedClientName = client.Name;
-            mutex.WaitOne();
-            if (Clients.Remove(client))
-            {
-              Console.WriteLine($"{disconnectedClientName} has disconnected");
-            }
-            mutex.ReleaseMutex();
-          }
-        });
+        }
+
+        List<ChatClient> deadies = new();
+        foreach (var client in Clients)
+        {
+          if (client.Dead)
+            deadies.Add(client);
+        }
+        foreach (var client in deadies)
+        {
+          Clients.Remove(client);
+          _logger.LogInformation("{name} has disconnected", client.Name);
+          Console.WriteLine($"{client.Name} has disconnected");
+        }
+        mutex.ReleaseMutex();
+
         await Task.Delay(100);
       }
     });
@@ -78,41 +77,17 @@ public class ChatService : IDisposable
 
   private async Task BroadcastAsync(string message)
   {
-    List<ChatClient> dead_clients = new();
     foreach (var client in Clients)
     {
-      try
-      {
-        await client.SendAsync(message);
-      }
-      catch (Exception ex)
-      {
-        Console.WriteLine(ex);
-        dead_clients.Add(client);
-      }
+      await client.SendAsync(message);
     }
-    mutex.WaitOne();
-    dead_clients.ForEach(client => Clients.Remove(client));
-    mutex.ReleaseMutex();
   }
   private void Broadcast(string message)
   {
-    List<ChatClient> dead_clients = new();
     foreach (var client in Clients)
     {
-      try
-      {
-        client.Send(message);
-      }
-      catch (Exception ex)
-      {
-        Console.WriteLine(ex);
-        dead_clients.Add(client);
-      }
+      client.Send(message);
     }
-    mutex.WaitOne();
-    dead_clients.ForEach(client => Clients.Remove(client));
-    mutex.ReleaseMutex();
   }
 
   #region IDisposable
