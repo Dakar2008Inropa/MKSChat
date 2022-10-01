@@ -5,7 +5,7 @@ namespace App.WindowsService;
 
 public class ChatService : IDisposable
 {
-  public List<ChatClient> Clients { get; } = new();
+  public List<NetworkClient> Clients { get; } = new();
   private Mutex mutex = new();
   private TcpListener? _listener { get; set; }
   private readonly ILogger<WindowsBackgroundService> _logger;
@@ -39,7 +39,7 @@ public class ChatService : IDisposable
           }
         }
 
-        List<ChatClient> deadies = new();
+        List<NetworkClient> deadies = new();
         foreach (var client in Clients)
         {
           if (client.Dead)
@@ -63,7 +63,7 @@ public class ChatService : IDisposable
       _logger.LogDebug("Waiting for client");
       TcpClient tcpClient = await _listener.AcceptTcpClientAsync();
       _logger.LogInformation("Client connected");
-      var client = new ChatClient(tcpClient);
+      var client = new NetworkClient(tcpClient);
       var name = await client.ReceiveAsync();
       client.Name = name;
       _logger.LogInformation("Name: {name}", name);
