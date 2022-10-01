@@ -55,12 +55,13 @@ namespace ChatClient
       }
     }
 
-    private void MainForm_FormClosing(object sender, FormClosingEventArgs e)
+    private async void MainForm_FormClosing(object sender, FormClosingEventArgs e)
     {
       if (userLoggedIn)
       {
         if (server is not null)
         {
+          await server.SendAsync($"{UserName} has left the chat.");
           server.Dispose();
         }
       }
