@@ -1,11 +1,12 @@
-﻿using System.Net;
+﻿using App.Common;
+using System.Net;
 using System.Net.Sockets;
 
 namespace ChatClient
 {
   public partial class MainForm : Form
   {
-    App.Common.ChatClient? server { get; set; }
+    NetworkClient? server { get; set; }
 
     bool userLoggedIn = false;
 
@@ -30,7 +31,7 @@ namespace ChatClient
         btnLogin.Visible = false;
         var tcpClient = new TcpClient();
         await tcpClient.ConnectAsync(IPAddress.Parse("127.0.0.1"), 9999);
-        server = new App.Common.ChatClient(tcpClient);
+        server = new App.Common.NetworkClient(tcpClient);
         await server.SendAsync(UserName!);
         userLoggedIn = true;
         while (true)

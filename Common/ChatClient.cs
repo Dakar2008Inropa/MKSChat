@@ -5,14 +5,14 @@ using System.Text;
 
 namespace App.Common;
 
-public sealed class ChatClient : IDisposable
+public sealed class NetworkClient : IDisposable
 {
   private TcpClient TcpClient { get; }
   public NetworkStream Stream { get; }
   public String? Name { get; set; }
   public bool Dead { get; private set; }
 
-  public ChatClient(TcpClient tcpClient)
+  public NetworkClient(TcpClient tcpClient)
   {
     TcpClient = tcpClient;
     Stream = tcpClient.GetStream();
