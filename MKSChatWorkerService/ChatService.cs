@@ -6,15 +6,10 @@ namespace App.WindowsService;
 public class ChatService : IDisposable
 {
   public List<NetworkClient> Clients { get; } = new();
-  //private Mutex mutex = new();
   private TcpListener? _listener { get; set; }
   private readonly ILogger<WindowsBackgroundService> _logger;
   public ChatService(ILogger<WindowsBackgroundService> logger) =>
       (_logger) = (logger);
-  ~ChatService()
-  {
-    //mutex.Dispose();
-  }
   public async Task ExecuteAsync()
   {
     _logger.LogInformation("ChatService starting");
@@ -24,11 +19,8 @@ public class ChatService : IDisposable
     _listener.Start();
     _logger.LogInformation("Listening on port {port}", port);
 
-    //Task t = new(async () =>
-    //{
     while (true)
     {
-      //mutex.WaitOne();
       foreach (var client in Clients)
       {
         if (client.Stream.DataAvailable)
@@ -51,15 +43,9 @@ public class ChatService : IDisposable
         _logger.LogInformation("{name} has disconnected", client.Name);
         Console.WriteLine($"{client.Name} has disconnected");
       }
-      //mutex.ReleaseMutex();
 
       await Task.Delay(100);
-      //}
-      //});
-      //t.Start();
 
-      //while (true)
-      //{
       _logger.LogDebug("Waiting for client");
       if (_listener.Pending())
       {
@@ -71,9 +57,7 @@ public class ChatService : IDisposable
         _logger.LogInformation("Name: {name}", name);
         Console.WriteLine($"{name} connected");
         await BroadcastAsync($"{name} connected");
-        //mutex.WaitOne();
         Clients.Add(client);
-        //mutex.ReleaseMutex();
       }
     }
   }
