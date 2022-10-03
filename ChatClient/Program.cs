@@ -1,17 +1,35 @@
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Configuration;
+using Microsoft.Extensions.Logging.EventLog;
+
 namespace ChatClient
 {
   internal static class Program
   {
-    /// <summary>
-    ///  The main entry point for the application.
-    /// </summary>
     [STAThread]
-    static void Main()
+    private static void Main(string[] args)
     {
-      // To customize application configuration such as set high DPI settings or default font,
-      // see https://aka.ms/applicationconfiguration.
       ApplicationConfiguration.Initialize();
-      Application.Run(new MainForm());
+
+      using IHost host = Host.CreateDefaultBuilder(args)
+        .ConfigureServices(services =>
+        {
+          LoggerProviderOptions.RegisterProviderOptions<
+              EventLogSettings, EventLogLoggerProvider>(services);
+          services.AddTransient<MainForm>();
+        })
+        .ConfigureLogging((context, logging) =>
+        {
+          // See: https://github.com/dotnet/runtime/issues/47303
+          logging.AddConfiguration(
+              context.Configuration.GetSection("Logging"));
+        })
+        .Build();
+
+      var mainForm = host.Services.GetRequiredService<MainForm>();
+      Application.Run(mainForm);
     }
   }
 }

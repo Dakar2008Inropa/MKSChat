@@ -94,7 +94,6 @@
       this.Padding = new System.Windows.Forms.Padding(5);
       this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
       this.Text = "Chat";
-      this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.MainForm_FormClosing);
       this.ResumeLayout(false);
       this.PerformLayout();
 

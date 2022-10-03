@@ -2,10 +2,14 @@ using App.WindowsService;
 using Microsoft.Extensions.Logging.Configuration;
 using Microsoft.Extensions.Logging.EventLog;
 
-using IHost host = Host.CreateDefaultBuilder(args)
+internal class Program
+{
+  private static async Task Main(string[] args)
+  {
+    using IHost host = Host.CreateDefaultBuilder(args)
     .UseWindowsService(options =>
     {
-      options.ServiceName = ".NET Joke Service";
+      options.ServiceName = "MKS Chat Service";
     })
     .ConfigureServices(services =>
     {
@@ -19,9 +23,11 @@ using IHost host = Host.CreateDefaultBuilder(args)
     .ConfigureLogging((context, logging) =>
     {
       // See: https://github.com/dotnet/runtime/issues/47303
-      logging.AddConfiguration(
-          context.Configuration.GetSection("Logging"));
+      var logginConfiguration = context.Configuration.GetSection("Logging");
+      logging.AddConfiguration(logginConfiguration);
     })
     .Build();
 
-await host.RunAsync();
+    await host.RunAsync();
+  }
+}

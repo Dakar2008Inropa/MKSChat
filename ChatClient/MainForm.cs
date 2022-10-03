@@ -1,17 +1,19 @@
 ﻿using App.Common;
 using System.Net;
 using System.Net.Sockets;
+using System.Diagnostics;
+using Microsoft.Extensions.Logging;
 
 namespace ChatClient
 {
   public partial class MainForm : Form
   {
+    private ILogger<MainForm> _logger;
     NetworkClient? server { get; set; }
 
-    bool userLoggedIn = false;
-
-    public MainForm()
+    public MainForm(ILogger<MainForm> logger)
     {
+      _logger = logger;
       InitializeComponent();
     }
 
@@ -23,23 +25,31 @@ namespace ChatClient
       if (loginForm.ShowDialog() == DialogResult.OK)
       {
         UserName = loginForm.UserName;
-        connectedLabel.Visible = true;
-        connectedLabel.Text = $"Connected as {UserName}";
-        tbInput.Clear();
-        tbInput.Enabled = true;
-        tbInput.Focus();
-        btnLogin.Visible = false;
-        var tcpClient = new TcpClient();
-        await tcpClient.ConnectAsync(IPAddress.Parse("127.0.0.1"), 9999);
-        server = new App.Common.NetworkClient(tcpClient);
-        await server.SendAsync(UserName!);
-        userLoggedIn = true;
-        while (true)
+
+        const string ipString = "127.0.0.1";
+        try
         {
-          var message = await server.ReceiveAsync();
-          if (!string.IsNullOrEmpty(message))
-            tbChatbox.AppendText(message + Environment.NewLine);
-          await Task.Delay(100);
+          server = await NetworkClient.ConnectAsync(_logger, IPAddress.Parse(ipString), 9999);
+          await server.SendAsync(UserName!);
+          connectedLabel.Visible = true;
+          connectedLabel.Text = $"Connected as {UserName}";
+          tbInput.Clear();
+          tbInput.Enabled = true;
+          tbInput.Focus();
+          btnLogin.Visible = false;
+          while (true)
+          {
+            var message = await server.ReceiveAsync();
+            if (!string.IsNullOrEmpty(message))
+              tbChatbox.AppendText(message + Environment.NewLine);
+            await Task.Delay(100);
+          }
+
+        }
+        catch (Exception ex)
+        {
+          _logger.LogError("Error connecting to {ipString} ({message})", ipString, ex.Message);
+          MessageBox.Show($"Error connecting to {ipString} ({ex.Message})");
         }
       }
     }
@@ -54,18 +64,6 @@ namespace ChatClient
           return;
         await server.SendAsync(input.Text);
         input.Clear();
-      }
-    }
-
-    private async void MainForm_FormClosing(object sender, FormClosingEventArgs e)
-    {
-      if (userLoggedIn)
-      {
-        if (server is not null)
-        {
-          await server.SendAsync($"{UserName} has left the chat.");
-          server.Dispose();
-        }
       }
     }
   }
