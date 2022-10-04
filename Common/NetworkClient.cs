@@ -1,4 +1,6 @@
-﻿using System.IO;
+﻿using Microsoft.Extensions.Logging;
+using System.IO;
+using System.Net;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -7,15 +9,22 @@ namespace App.Common;
 
 public sealed class NetworkClient : IDisposable
 {
+  private readonly ILogger _logger;
   private TcpClient TcpClient { get; }
-  public NetworkStream Stream { get; }
-  public String? Name { get; set; }
-  public bool Dead { get; private set; }
+  private NetworkStream Stream { get; }
 
-  public NetworkClient(TcpClient tcpClient)
+  public String? Name { get; set; }
+  public bool Disconnected { get; private set; }
+  public bool DataAvailable => Stream.DataAvailable;
+
+  public NetworkClient(ILogger logger, TcpClient tcpClient) =>
+    (_logger, TcpClient, Stream) = (logger!, tcpClient, tcpClient.GetStream());
+
+  public static async Task<NetworkClient> ConnectAsync(ILogger logger, IPAddress iPAddress, int port)
   {
-    TcpClient = tcpClient;
-    Stream = tcpClient.GetStream();
+    TcpClient tcpClient = new();
+    await tcpClient.ConnectAsync(iPAddress, port);
+    return new NetworkClient(logger, tcpClient);
   }
 
   public async Task<string> ReceiveAsync()
@@ -29,7 +38,7 @@ public sealed class NetworkClient : IDisposable
     }
     catch (Exception)
     {
-      Dead = true;
+      Disconnected = true;
       return string.Empty;
     }
   }
@@ -43,9 +52,10 @@ public sealed class NetworkClient : IDisposable
       var message = Encoding.UTF8.GetString(buffer, 0, received);
       return message;
     }
-    catch (Exception)
+    catch (Exception ex)
     {
-      Dead = true;
+      Disconnected = true;
+      _logger.LogDebug(ex, "Client disconnected ({Name})", Name);
       return string.Empty;
     }
   }
@@ -57,9 +67,10 @@ public sealed class NetworkClient : IDisposable
     {
       await Stream.WriteAsync(msg);
     }
-    catch (Exception)
+    catch (Exception ex)
     {
-      Dead = true;
+      Disconnected = true;
+      _logger.LogDebug(ex, "Client disconnected ({Name})", Name);
     }
   }
 
@@ -70,15 +81,17 @@ public sealed class NetworkClient : IDisposable
     {
       Stream.Write(msg);
     }
-    catch (Exception)
+    catch (Exception ex)
     {
-      Dead = true;
+      Disconnected = true;
+      _logger.LogDebug(ex, "Client disconnected ({Name})", Name);
     }
   }
 
   #region IDisposable
   // To detect redundant calls
   private bool _disposedValue;
+
   // Public implementation of Dispose pattern.
   public void Dispose() => Dispose(true);
   public void Dispose(bool disposing)
